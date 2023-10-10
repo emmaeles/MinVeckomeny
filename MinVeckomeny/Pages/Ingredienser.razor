@@ -1,0 +1,164 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+@inject NavigationManager navigation;
+
+
+@if (valdaIngredienser.Count > 0)
+{
+
+	<table class="table table-striped" style="width: 70%">
+		<thead>
+			<tr>
+				<th> </th>
+				<th style="font-weight: normal;">Ingrediens</th>
+				<th style="font-weight: normal;">Mängd</th>
+				<th style="font-weight: normal;">Enhet</th>
+			</tr>
+		</thead>
+		<tbody>
+			@if (valdaIngredienser.Count > 0)
+			{
+				@foreach (var item in valdaIngredienser)
+				{
+					<tr>
+						<td>
+							<button type="button" @onclick="() => RemoveIngredient(item.Id)" style="height: 24px; width: 24px;
+						display: flex; align-items: center; background-color: rgba(0,0,0,0);
+						border: none; justify-content: center; font-size: 32px; color: #98a7ba">
+								<div>×</div>
+							</button>
+						</td>
+						<td>@item.Name</td>
+						<td>
+							@if (String.IsNullOrEmpty(item.Enhet) == false)
+							{
+								<input type="number" step="any" @bind="item.Temp"
+								@onfocusout="() => AddAmount(item.Id, item.Temp)" class="form-control"
+									   style="width: 5em; height: 28px" />
+							}
+						</td>
+						<td>@item.Enhet</td>
+					</tr>
+				}
+			}
+		</tbody>
+	</table>
+
+}
+
+
+<div style="width: 85%; margin-top: 2em">
+	@foreach (var item in allaIngredienser)
+	{
+		<span id="@item.Id" class="btn btn-light mx-1 my-1" style="background-color: #dce2c0"
+		@onclick="() => AddToValdaIngredienser(item.Id)">@item.Name</span>
+		if (counter < allaIngredienser.Count - 1 &&
+		allaIngredienser[counter].Kategori != allaIngredienser[counter + 1].Kategori)
+		{
+			<hr />
+		}
+		counter++;
+	}
+	@(counter = 0)
+</div>
+
+@code {
+	[Parameter]
+	public bool Uppdatera { get; set; }
+	[CascadingParameter]
+	public int ReceptId { get; set; }
+	[CascadingParameter]
+	public bool Edit { get; set; }
+	[CascadingParameter]
+	public string ReceptNamn { get; set; }
+	[Parameter]
+	public bool SkickatillDatabas { get; set; }
+	private List<IngredientModel> allaIngredienser;
+	private List<IngredientModel> valdaIngredienser = new();
+	private List<IngredientModel> nyaIngredienser = new();
+	private List<IngredientModel> borttagnaIngredienser = new();
+	private int counter = 0;
+	private List<string> mängder = new();
+	private List<int> ConnectionTableToRemove = new();
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		allaIngredienser = data.GetAllIngredientModels();
+		if (Edit)
+		{
+			valdaIngredienser = data.GetIngredientModelsByRecipe(ReceptId);
+		}
+	}
+
+
+	protected override void OnParametersSet()
+	{
+		if (SkickatillDatabas)
+		{
+			if (mängder.Count > 0)
+			{
+				data.AddIngredients2Recipes(mängder, ReceptNamn, Edit);
+			}
+			data.RemoveFromConnectionTable(ConnectionTableToRemove, ReceptId);
+		}
+		else
+		{
+			allaIngredienser = data.GetAllIngredientModels();
+			if (valdaIngredienser.Count > 0)
+			{
+				foreach (var item in valdaIngredienser)
+				{
+					var itemToRemove = allaIngredienser.Where(o => o.Name == item.Name).First();
+					allaIngredienser.Remove(itemToRemove);
+				}
+			}
+			StateHasChanged();
+		}
+	}
+
+	private void AddToValdaIngredienser(int id)
+	{
+		var currentItem = allaIngredienser.Where(o => o.Id == id).SingleOrDefault();
+		valdaIngredienser.Add(currentItem);
+
+		allaIngredienser.Remove(currentItem);
+		AddAmount(id, currentItem.Temp);
+	}
+
+	private void AddAmount(int id, decimal mängd)
+	{
+		if (mängder.Count == 0)
+			mängder.Add(mängd + " " + id);
+		else
+		{
+			for (int i = 0; i < mängder.Count; i++)
+			{
+				if (mängder[i].Contains($" {id}"))
+				{
+					mängder.Remove(mängder[i]);
+					break;
+				}
+			}
+			mängder.Add(mängd + " " + id);
+		}
+	}
+
+	private void RemoveIngredient(int id)
+	{
+		if (Edit)
+		{
+			ConnectionTableToRemove.Add(id);
+		}
+		else
+		{
+			var amountToRemove = mängder.Where(o => o.Contains($" {id}")).First();
+			mängder.Remove(amountToRemove);
+		}
+
+		var currentItem = valdaIngredienser.Where(o => o.Id == id).First();
+		valdaIngredienser.Remove(currentItem);
+		allaIngredienser.Add(currentItem);
+	}
+
+
+}

@@ -1,0 +1,45 @@
+﻿@page "/"
+@page "/index/{UpdateRecipeList}"
+
+<PageTitle>Index</PageTitle>
+
+<div class="row">
+	<div class="col-md-4" style="width: 40%">
+		<CascadingValue Value="@UpdateRecipeList">
+				<MinaRecept OnAddToVeckomeny="SendIdToWeekMenu" RecipeToAddId="AddBackToMyRecipesId"></MinaRecept>
+		</CascadingValue>
+	</div>
+	<div class="col-md-4" style="width: 30%; margin-left: 2em">
+			<Veckomeny OnGenerateShopplingList="GenerateShoppingList" OnRemoveFromVeckomeny="AddBackToMyRecipes"
+				RecipeToAdd="LastAddedRecipeId"></Veckomeny>
+	</div>
+	<div class="col-md-4" style="width: 25%">
+		<CascadingValue Value="@WeekMenu">
+			<Inköpslista></Inköpslista>
+		</CascadingValue>
+	</div>
+</div>
+
+
+@code {
+	[Parameter]
+	public string UpdateRecipeList { get; set; }
+	public int LastAddedRecipeId { get; set; }
+	public List<IndexModel> WeekMenu { get; set; }
+	public int AddBackToMyRecipesId { get; set; }
+
+	private void SendIdToWeekMenu(int receptId)
+	{
+		LastAddedRecipeId = receptId;
+	}
+
+	private void GenerateShoppingList(List<IndexModel> weekMenu)
+	{
+		WeekMenu = weekMenu;
+	}
+
+	private void AddBackToMyRecipes(int recipeId)
+	{
+		AddBackToMyRecipesId = recipeId;
+	}
+}

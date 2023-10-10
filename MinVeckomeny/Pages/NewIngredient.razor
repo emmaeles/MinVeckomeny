@@ -1,0 +1,101 @@
+﻿<div class="modal @ModalClass" tabindex="-1" role="dialog" style="display:@ModalDisplay">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Lägg till ny ingrediens</h5>
+                <button type="button" class="close" data-dismiss="modal" @onclick="() => Close()">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <EditForm Model="nyIngrediens" OnValidSubmit="@AddIngredient">
+                    <label for="name">
+                        Namn:
+                        <InputText id="name" class="form-control" @bind-Value="nyIngrediens.Name" />
+                    </label>
+                    <label for="kategori">
+                        Kategori:
+                        <InputSelect class="form-control" @bind-Value="nyIngrediens.Kategori">
+                            <option>Välj kategori</option>
+                            <option value="1">Grönsaker & Frukt (färsk & fryst)</option>
+                            <option value="2">Köttprodukter</option>
+                            <option value="3">Fiskprodukter</option>
+                            <option value="4">Ost</option>
+                            <option value="5">Kolhydrater</option>
+                            <option value="6">Bönor & burkar m.m.</option>
+                            <option value="7">Kryddor & såser</option>
+                            <option value="8">Mejerihyllan</option>
+                            <option value="9">Bakhyllan</option>
+                        </InputSelect>
+                    </label>
+                    <label for="enhet">
+                        Enhet:
+                        <InputSelect class="form-control" @bind-Value="nyIngrediens.Enhet">
+                            <option value="">Ingen enhet (kryddor osv)</option>
+                            <option value="deciliter">deciliter</option>
+                            <option value="gram">gram</option>
+                            <option value="msk">matsked</option>
+                            <option value="paket">paket</option>
+                            <option value="styck">styck</option>
+                            <option value="kruka">kruka</option>
+                            <option value="burk">burk</option>
+                        </InputSelect>
+                    </label>
+                    <label for="harHemma">
+                        Har oftast hemma
+                        <InputCheckbox class="form-check-input" @bind-Value="nyIngrediens.HarHemma" />
+                    </label>
+
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Lägg till ingrediens</button>
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal" @onclick="() => Close()">Close</button>
+                    </div>
+
+
+                </EditForm>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+
+@if (ShowBackdrop)
+{
+    <div class="modal-backdrop fade show"></div>
+}
+
+
+@code {
+    public Guid Guid = Guid.NewGuid();
+    public string ModalDisplay = "none;";
+    public string ModalClass = "";
+    public bool ShowBackdrop = false;
+    [Parameter]
+    public EventCallback<IngredientModel> OnAddedIngredient { get; set; }
+    private IngredientModel nyIngrediens = new();
+
+
+
+    public void Open()
+    {
+        ModalDisplay = "block;";
+        ModalClass = "Show";
+        ShowBackdrop = true;
+        StateHasChanged();
+    }
+
+    public void Close()
+    {
+        ModalDisplay = "none";
+        ModalClass = "";
+        ShowBackdrop = false;
+        StateHasChanged();
+    }
+
+    public void AddIngredient()
+    {
+        OnAddedIngredient.InvokeAsync(nyIngrediens);
+        Close();
+    }
+}

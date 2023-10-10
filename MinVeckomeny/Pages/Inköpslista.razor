@@ -1,0 +1,114 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+
+
+<div style="background-color: #f3f6fa; width: 100%; height: 60em;">
+	<div style="padding: 2em">
+		<h1 style="font-size: 25px; text-decoration: underline; margin-top: -18px; text-align:center">Inköpslista</h1>
+		@foreach (var item in shoppingList)
+		{
+			<div @onclick="() => MoveToHaveAtHome(item)" style="display: flex; justify-content: space-between; cursor: pointer">
+				<span>@item.Name</span>
+				<div>
+				<span>@(item.Enhet != null ? @item.Temp.ToString("0.#####") : "")</span>
+					@if (item.Enhet == "burk" && item.Temp > 1) { <span>&nbsp;burkar</Span> }
+					else if (item.Enhet == "styck"){ <span>&nbsp;st</Span> }
+					else {<span>&nbsp;@item.Enhet</Span>}
+				</div>
+			</div>
+		}
+		@if (haveAtHome.Count > 0)
+		{
+			<hr />
+			<div style="font-weight: bold">Har hemma:</div>
+		}
+		@foreach (var item in haveAtHome)
+		{
+			<div @onclick="() => MoveToShoppingList(item)" style="display: flex; justify-content: space-between; cursor: pointer">
+				<span>@item.Name</span>
+				<div>
+				<span>@(item.Enhet != null ? @item.Temp.ToString("0.#####") : "")</span>
+					@if (item.Enhet == "burk" && item.Temp > 1) { <span>&nbsp;burkar</Span> }
+					else if (item.Enhet == "styck"){ <span>&nbsp;st</Span> }
+					else if (item.Enhet != "") {<span>&nbsp;@item.Enhet</Span>}
+					else {<span></Span>}
+				</div>
+			</div>
+		}
+	</div>
+</div>
+
+
+@code {
+	[CascadingParameter]
+	public List<IndexModel> WeekMenu { get; set; }
+	List<IngredientModel> shoppingList = new();
+	List<IngredientModel> haveAtHome = new();
+
+	protected override void OnParametersSet()
+	{
+		if (WeekMenu != null)
+		{
+			shoppingList.Clear();
+			haveAtHome.Clear();
+
+			foreach (var item in WeekMenu)
+			{
+
+				var result = data.GetIngredientModelsByRecipe(item.Id);
+				var originalNoOfPortions = data.GetRecipeByID(item.Id).NoOfPortions;
+				decimal multiplicationFactor = item.NoOfPortions / originalNoOfPortions;
+
+				foreach (var currentIngredient in result)
+				{
+					currentIngredient.Temp = currentIngredient.Temp * multiplicationFactor;
+					currentIngredient.Temp = Math.Round(currentIngredient.Temp, 1);
+					bool addToList = true;
+					if (currentIngredient.HarHemma == false)
+					{
+						foreach (var alreadyAddedIngredient in shoppingList)
+						{
+							if (currentIngredient.Id == alreadyAddedIngredient.Id)
+							{
+								var itemToChange = shoppingList.Where(o => o.Id == currentIngredient.Id).FirstOrDefault();
+								itemToChange.Temp += currentIngredient.Temp;
+								addToList = false;
+								break;
+							}
+						}
+						if (addToList)
+							shoppingList.Add(currentIngredient);
+					}
+					else
+					{
+						foreach (var alreadyAddedIngredient in haveAtHome)
+						{
+							if (currentIngredient.Id == alreadyAddedIngredient.Id)
+							{
+								var itemToChange = haveAtHome.Where(o => o.Id == currentIngredient.Id).FirstOrDefault();
+								itemToChange.Temp += currentIngredient.Temp;
+								addToList = false;
+								break;
+							}
+						}
+						if (addToList)
+							haveAtHome.Add(currentIngredient);
+					}
+				}
+			}
+
+		}
+	}
+
+	private void MoveToHaveAtHome(IngredientModel item)
+	{
+		var itemToMove = shoppingList.Where(o => o.Id == item.Id).First();
+		shoppingList.Remove(itemToMove);
+		haveAtHome.Add(itemToMove);
+	}
+	private void MoveToShoppingList(IngredientModel item)
+	{
+		var itemToMove = haveAtHome.Where(o => o.Id == item.Id).First();
+		haveAtHome.Remove(itemToMove);
+		shoppingList.Add(itemToMove);
+	}
+}

@@ -1,0 +1,221 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+<div>
+	<h1 class="h3">Mina recept </h1>
+
+	<div class="input-group mb-3">
+		@if (searchFilter == "Receptnamn")
+		{
+			<input type="text" @bind="inputValue" @oninput="ShowSearchResult" class="form-control" placeholder="sök...">
+		}
+		@if (searchFilter == "Ingrediens")
+		{
+			<InputSelect class="form-control ingredient-dropdown"
+						 ValueExpression="@(() => inputValue)"
+						 Value="@inputValue"
+						 ValueChanged="@((string value) => FilterSearchResult(value))">
+						 
+				<option value="">Sök på ingrediens</option>
+				@foreach (var item in allIngredients)
+				{
+					
+					<option value="@item">@item</option>
+				}
+			</InputSelect>
+		}
+		<div class="input-group-prepend">
+			<div class="dropdown">
+				<a @onclick=this.ToggleDropDown class="btn btn-secondary dropdown-toggle" role="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+					@searchFilter
+				</a>
+				@if (state)
+				{
+					<div class="dropdown-menu show" aria-labelledby="dropdownMenuButton">
+						<a @onclick='() => searchFilter = "Receptnamn"' class="dropdown-item">Receptnamn</a>
+						<a @onclick='() => searchFilter = "Ingrediens"' class="dropdown-item">Ingrediens</a>
+						<a @onclick='() => searchFilter = "Hashtag"' class="dropdown-item">Hashtag</a>
+						<a class="dropdown-item">Visa endast veckans extrapriser</a>
+					</div>
+				}
+			</div>
+		</div>
+	</div>
+
+	@if (chosenIngredients.Count > 0)
+	{
+		foreach (var item in chosenIngredients)
+		{
+			<span id="@item" class="btn btn-light mx-1 my-1" style="background-color: #dce2c0"
+			@onclick="() => RemoveFromChosenFilters(item)">@item</span>
+		}
+
+	}
+	<br />
+	<br />
+	<div>
+		<ul style="list-style-type: none; padding: 0px;">
+			@foreach (var item in recipeListToDisplay)
+			{
+				<li style="display: flex; justify-content:space-between">
+					<div style="display: flex">
+						<div>
+							@if (item.Image != "")
+							{
+								<div class="indexImage" style="background-image: url('/Images/@item.Image');
+								margin-right: 1em"></div>
+							}
+						</div>
+						<div>
+							<a href="details/@item.Id" class="h4" style="text-decoration: none; color: black">
+								@item.Name
+							</a>
+							<div>
+								@item.Description
+							</div>
+							@foreach (var hashtag in hashtagsByRecipes[item.Id])
+							{
+								<span style="margin-right: 18px; color: #87c85a; font-size: 18px">#@hashtag</span>
+							}
+						</div>
+					</div>
+					<div style="display: flex; flex-direction: row; align-items: center; margin-right: 1em">
+						<button @onclick="() => AddToVeckomeny(item.Id)"
+								style="height: 30px; width: 30px; border-radius: 25px;
+						display: flex; align-items: center; background-color: #abb7c7;
+						border: none; justify-content: center; font-size: 15px; color: white;
+						font-weight: bold">
+							→
+						</button>
+					</div>
+				</li>
+				<hr />
+			}
+		</ul>
+	</div>
+</div>
+
+@code {
+	[CascadingParameter]
+	public string NeedsUpdate { get; set; }
+	[Parameter]
+	public int RecipeToAddId { get; set; }
+	private static int oldRecipeToAddId;
+	static List<IndexModel> recipeList;
+	static List<IndexModel> recipeListToDisplay;
+	static Dictionary<int, List<string>> hashtagsByRecipes;
+	static Dictionary<IndexModel, List<string>> ingredientsByRecipes;
+	[Parameter]
+	public EventCallback<int> OnAddToVeckomeny { get; set; }
+	private static bool alreadyInitialized;
+	private string inputValue = "";
+	private bool state = false;
+	private string searchFilter = "Receptnamn";
+	private static List<string> allIngredients;
+	private static List<string> chosenIngredients = new();
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		if (!alreadyInitialized)
+		{
+			recipeList = data.GetAll();
+			recipeListToDisplay = new List<IndexModel>(recipeList);
+			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
+			ingredientsByRecipes = data.GettAllIngredientsByRecipes();
+			allIngredients = data.GetAllIngredientNames();
+			alreadyInitialized = true;
+		}
+	}
+
+	protected override void OnParametersSet()
+	{
+		if (NeedsUpdate == "true")
+		{
+			recipeList = data.GetAll();
+			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
+			NeedsUpdate = "false";
+		}
+		if (RecipeToAddId != 0 && oldRecipeToAddId != RecipeToAddId)
+		{
+			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
+			recipeList.Add(data.GetIndexModel(RecipeToAddId));
+			oldRecipeToAddId = RecipeToAddId;
+			RecipeToAddId = 0;
+		}
+	}
+
+	private void AddToVeckomeny(int receptId)
+	{
+		OnAddToVeckomeny.InvokeAsync(receptId);
+		var recipeToRemove = recipeList.Where(o => o.Id == receptId).First();
+		recipeList.Remove(recipeToRemove);
+	}
+
+	private void ShowSearchResult(ChangeEventArgs changeEvent)
+	{
+		inputValue = (string)changeEvent.Value;
+
+		recipeListToDisplay = recipeList.Where(o => o.Name.ToLower().Contains(inputValue.ToLower())).ToList();
+
+	}
+
+	private void ToggleDropDown()
+		=> this.state = !this.state;
+
+
+	private void FilterSearchResult(string filter)
+	{
+		chosenIngredients.Add(filter);
+		recipeListToDisplay.Clear();
+
+		foreach (var entry in ingredientsByRecipes)
+		{
+			int counter = 0;
+
+			foreach (var chosen in chosenIngredients)
+			{
+				if (entry.Value.Contains(chosen))
+				{
+					counter++;
+				}
+			}
+
+			if (counter == chosenIngredients.Count)
+			{
+				recipeListToDisplay.Add(entry.Key);
+			}
+		}
+	}
+
+	private void RemoveFromChosenFilters(string filter)
+	{
+		chosenIngredients.Remove(filter);
+
+		if (chosenIngredients.Count == 0)
+		{
+			recipeListToDisplay = new List<IndexModel>(recipeList);
+		}
+		else
+		{
+			recipeListToDisplay.Clear();
+
+			foreach (var entry in ingredientsByRecipes)
+			{
+				int counter = 0;
+
+				foreach (var chosen in chosenIngredients)
+				{
+					if (entry.Value.Contains(chosen))
+					{
+						counter++;
+					}
+				}
+
+				if (counter == chosenIngredients.Count)
+				{
+					recipeListToDisplay.Add(entry.Key);
+				}
+			}
+		}
+
+	}
+}

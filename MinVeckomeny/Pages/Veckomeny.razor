@@ -1,0 +1,111 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+@page "/veckomeny"
+
+
+
+
+<div style="background-color: #f3f6fa; width: 100%; height: 60em;">
+	<div style="padding: 1em; display: flex;
+		flex-direction: column; align-items: center">
+		<h1 style="font-size: 25px; text-decoration: underline; margin-top: -4px">Veckomeny</h1>
+	@foreach (var item in weekMenu)
+	{
+			<div style="width: 100%; display: flex;  margin-bottom: 1em; justify-content: space-between;
+			align-items: center; border-radius: 8px; background-color: #e2e9f3;">
+				<div style="display: flex; align-items: center; padding: 12px">
+					<button @onclick="() => RemoveFromWeekMenu(item.Id)" style="height: 24px; width: 24px;
+						display: flex; align-items: center; background-color: #e2e9f3;
+						border: none; justify-content: center; font-size: 32px; color: #98a7ba">
+						<div>×</div>
+					</button>
+					<div style="display: flex; margin-left: 16px; font-size: 22px; line-height: 26px;">
+						<a href="details/@item.Id" style="text-decoration: none; color: black">@item.Name</a>
+					</div>
+				</div>
+				<div style="margin-right: 22px; font-size: 26px; display: flex">
+					<div style="display: flex; align-items: center; margin-right: 10px">🍴</div>
+					<div>
+						<div @onclick="() => AddPortion(item.Id)" style="color: #98a7ba;
+							font-size: 18px; cursor: pointer">▲</div>
+						<div style="display: flex; flex-direction: column; align-items: center;
+							margin-top: -8px; margin-bottom: -8px;">
+							@item.NoOfPortions.ToString("0.#####")
+						</div>
+						<div @onclick="() => SubtractPortion(item.Id)" style="color: #98a7ba;
+							font-size: 18px; cursor: pointer">
+							▼
+						</div>
+					</div>
+				</div>
+			</div>
+	}
+	@if (weekMenu.Count > 0)
+	{
+		<button @onclick="GenerateShoppingList" style="background-color: #98a7ba; border: none;
+			border-radius: 6px;">
+			<div style="padding: 5px; color: white">Generera inköpslista</div>
+		</button>
+	}
+	</div>
+</div>
+
+@code {
+	[Parameter]
+	public int RecipeToAdd { get; set; }
+	private static bool alreadyUpdated;
+	private static int oldRecipeToAdd;
+	[Parameter]
+	public EventCallback<List<IndexModel>> OnGenerateShopplingList { get; set; }
+	[Parameter]
+	public EventCallback<int> OnRemoveFromVeckomeny { get; set; }
+	static List<IndexModel> weekMenu = new();
+
+
+
+	protected override void OnParametersSet()
+	{
+		if (oldRecipeToAdd != RecipeToAdd) { alreadyUpdated = false; }
+		if (RecipeToAdd != 0 && !alreadyUpdated)
+		{
+			bool add = true;
+			foreach (var item in weekMenu)
+			{
+				if (item.Id == RecipeToAdd)
+				{
+					add = false;
+				}
+			}
+			if (add) { weekMenu.Add(data.GetIndexModel(RecipeToAdd)); }
+			oldRecipeToAdd = RecipeToAdd;
+			RecipeToAdd = 0;
+		}
+	}
+
+	private void AddPortion(int recipeId)
+	{
+		var recipeToAdjust = weekMenu.Where(o => o.Id == recipeId).FirstOrDefault();
+		recipeToAdjust.NoOfPortions++;
+	}
+
+	private void SubtractPortion(int recipeId)
+	{
+		var recipeToAdjust = weekMenu.Where(o => o.Id == recipeId).FirstOrDefault();
+		recipeToAdjust.NoOfPortions--;
+	}
+
+	private void GenerateShoppingList()
+	{
+		OnGenerateShopplingList.InvokeAsync(weekMenu);
+	}
+
+	private void RemoveFromWeekMenu(int recipeId)
+	{
+		var recipeToRemove = weekMenu.Where(o => o.Id == recipeId).First();
+		weekMenu.Remove(recipeToRemove);
+		OnRemoveFromVeckomeny.InvokeAsync(recipeId);
+		alreadyUpdated = true;
+	}
+
+}
+
+

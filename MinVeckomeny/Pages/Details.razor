@@ -1,0 +1,86 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+@page "/details/{id}"
+
+<div style="display: flex">
+	<div>
+		<div style="display: flex; justify-content: space-between; width: 30em">
+			<div>
+				<h1 style="width: 90%">@model.Name</h1>
+				<div style="font-size: 20px; font-style: italic">@model.Description</div>
+				@foreach (var item in model.Hashtags)
+				{
+					<span style="margin-right: 18px; color: #87c85a; font-size: 18px">#@item</span>
+				}
+				<br />
+			</div>
+				<p style="font-size: 26px; margin-top: 8px; width: 20%">🍴 @model.NoOfPortions.ToString("0.#")</p>
+			</div>
+			<br />
+		<h4>Ingredienser:</h4>
+		<table class="table table-striped" style="width: 30em">
+			<tbody>
+				@if (ingredientModels.Count > 0)
+				{
+					@foreach (var item in ingredientModels)
+					{
+						<tr>
+							<td>@item.Name</td>
+							<td>@(item.Enhet != null ? item.Temp.ToString("0.###") : "")</td>
+							@if (item.Enhet == "burk" && item.Temp > 1)
+							{
+								<td>burkar</td>
+							}
+							else if (item.Enhet == "styck")
+							{
+								<td>st</td>
+							}
+							else if (item.Enhet != "")
+							{
+								<td>@item.Enhet</td>
+							}
+							else
+							{
+								<td></td>
+							}
+						</tr>
+					}
+				}
+			</tbody>
+		</table>
+	</div>
+	@if (model.Image != "")
+	{
+		<img src="/Images/@model.Image" style="height: 400px; margin-left: 3em" />
+	}
+</div>
+
+<br />
+<div style="font-size: 21px; text-decoration: underline">Noteringar</div>
+<div style="font-size: 15px; width: 40em">@model.Instructions</div>
+
+<br />
+
+<a href="editRecipe/@model.Id">
+	<button style="background-color: #98a7ba; border: none;
+			border-radius: 6px;">
+		<div style="padding: 5px">Redigera recept</div>
+	</button>
+</a>
+
+
+
+
+@code {
+	[Parameter]
+	public string Id { get; set; }
+
+	DetailsModel model;
+	List<IngredientModel> ingredientModels;
+
+
+	protected override async Task OnInitializedAsync()
+	{
+		model = data.GetDetailsModelByID(Convert.ToInt16(Id));
+		ingredientModels = data.GetIngredientModelsByRecipe(model.Id);
+	}
+}

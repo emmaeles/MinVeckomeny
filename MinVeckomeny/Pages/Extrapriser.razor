@@ -1,0 +1,42 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+@page "/extrapriser"
+
+<PageTitle>Index</PageTitle>
+
+<h1>Veckans extrapriser: </h1>
+
+
+@if (string.IsNullOrWhiteSpace(errorString) == false)
+{
+	<div class="h2">@veckans.ErrorMessage</div>
+}
+else if (veckans is null)
+{
+	<p>Loading...</p>
+}
+else
+{
+	foreach (var item in veckans.results)
+	{
+		<p>
+			@(item.name != null ? item.name : null):
+			extrapris @(item.potentialPromotions[0].price.formattedValue != null ? item.potentialPromotions[0].price.formattedValue + " kr" : null),
+			ordinarie pris: @(item.price != null ? item.price + " kr" : null)
+			, kategori: @item.googleAnalyticsCategory
+		</p>
+	}
+}
+
+
+
+@code {
+	ExtraPrisModel veckans;
+	string errorString = null;
+
+	protected override async Task OnInitializedAsync()
+	{
+		veckans = await data.GetExtraPrices();
+		string errorString = veckans.ErrorMessage;
+	}
+
+}

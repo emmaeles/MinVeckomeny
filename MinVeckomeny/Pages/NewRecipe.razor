@@ -1,0 +1,208 @@
+﻿@inject MinVeckomeny.Data.DataService data;
+@inject IWebHostEnvironment webHostEnv;
+@inject NavigationManager navigation;
+@page "/newRecipe"
+
+<h3>Lägg till nytt recept</h3>
+
+<div style="display: flex">
+	<div style="width: 30%">
+		<EditForm Model="model" OnValidSubmit="@SendToDatabase">
+			<DataAnnotationsValidator />
+			<ValidationSummary />
+
+
+			<div>
+				<label for="name">
+					Namn
+					<InputText id="name" class="form-control" style="width: 20em" @bind-Value="model.Name" />
+				</label>
+			</div>
+			<div>
+				<label for="noOfPortions">
+					Antal portioner
+					<InputNumber id="noOfPortions" class="form-control" style="width: 6em" @bind-Value="model.NoOfPortions" />
+				</label>
+			</div>
+			<div>
+				<label for="description">
+					Beskrivning
+					<InputText id="description" class="form-control" style="width: 30em" @bind-Value="model.Description" />
+				</label>
+			</div>
+			<div>
+				<label for="instructions">
+					Instruktioner / anteckningar
+					<InputTextArea id="instructions" class="form-control" style="width: 30em" @bind-Value="model.Instructions" />
+				</label>
+			</div>
+
+
+			<div>
+				<label for="image">
+					Bild
+					<InputFile OnChange="LoadFiles" id="image" class="form-control" @bind-Value="model.FileName" />
+				</label>
+			</div>
+
+			<br />
+			<div>
+				Tagga receptet
+				<br />
+				@foreach (var item in allHashtags)
+				{
+					<span style=@Style(item) @onclick="() => AddToHashtags(item)">#@item</span>
+				}
+			</div>
+			<br />
+
+
+			<button type="submit" class="btn btn-primary mt-3" style="background-color: #97cf70; border: none">Lägg till recept</button>
+			<br />
+			<br />
+		</EditForm>
+	</div>
+
+	<div style="margin-left: 3em">
+		<CascadingValue Value="@Namn">
+			<Ingredienser Uppdatera="UpdateList" SkickatillDatabas="SendIngredients">
+			</Ingredienser>
+		</CascadingValue>
+
+
+		<button type="button" @onclick="() => Modal.Open()" style="background-color: #98a7ba; border: none;
+			border-radius: 6px; margin-top: 1em">
+			<div style="padding: 5px">Lägg till ny ingrediens</div>
+		</button>
+	</div>
+</div>
+
+<NewIngredient OnAddedIngredient="AddIngredient" @ref="Modal"></NewIngredient>
+
+
+
+
+
+@if (errors.Count > 0)
+{
+	<h2>Errors</h2>
+	<ul>
+		@foreach (var e in errors)
+		{
+			<li>@e</li>
+		}
+	</ul>
+}
+
+@code {
+	[Parameter]
+	public string Id { get; set; }
+	[Parameter]
+	public bool UpdateList { get; set; }
+	[Parameter]
+	public bool SendIngredients { get; set; }
+	public string Namn { get; set; }
+	private long maxFileSize = 1024 * 1024 * 5;
+	private int maxAllowedFiles = 3;
+	private List<string> errors = new();
+	private AddRecipeModel model = new AddRecipeModel();
+	private IBrowserFile? file;
+	private MinVeckomeny.Pages.NewIngredient Modal { get; set; }
+	private List<string> allHashtags = new();
+	private List<string> chosenHashtags = new();
+
+	protected override async Task OnInitializedAsync()
+	{
+		allHashtags = data.GetAllHashtags();
+	}
+
+	private async Task SendToDatabase()
+	{
+		try
+		{
+			model.FileName = await CaptureFile();
+			Namn = model.Name;
+			model.Hashtags = chosenHashtags;
+			data.Add(model);
+			SendIngredients = true;
+			navigation.NavigateTo("/index/true");
+		}
+		catch (Exception e)
+		{
+			errors.Add(e.Message);
+			throw;
+		}
+	}
+
+
+	private void LoadFiles(InputFileChangeEventArgs e)
+	{
+		file = e.File;
+	}
+
+	private async Task<string> CaptureFile()
+	{
+		if (file is null)
+		{
+			return "noImage.jpeg";
+		}
+
+		try
+		{
+			var filePath = Path.Combine(webHostEnv.WebRootPath, "Images", file.Name);
+			await using FileStream fs = new(filePath, FileMode.Create);
+			await file.OpenReadStream(maxFileSize).CopyToAsync(fs);
+		}
+		catch (Exception e)
+		{
+			errors.Add(e.Message);
+			throw;
+		}
+
+		return file.Name;
+	}
+
+	private async Task AddIngredient(IngredientModel nyIngrediens)
+	{
+		data.AddIngredient(nyIngrediens);
+		nyIngrediens = new IngredientModel();
+		UpdateList = !UpdateList;
+	}
+
+	private void AddToHashtags(string hashtag)
+	{
+		bool add = true;
+		foreach (var item in chosenHashtags)
+		{
+			if (hashtag == item)
+			{
+				add = false;
+			}
+		}
+		if (add)
+		{
+			chosenHashtags.Add(hashtag);
+		}
+		else
+		{
+			chosenHashtags.Remove(hashtag);
+		}
+	}
+
+	private string Style(string hashtag)
+	{
+		if (chosenHashtags.Count > 0)
+		{
+			foreach (var item in chosenHashtags)
+			{
+				if (hashtag == item)
+				{
+					return "display: inline-block; margin-right: 18px; margin-bottom: 9px; color: green; font-weight: bold; font-size: 18px; cursor: pointer";
+				}
+			}
+		}
+
+		return "display: inline-block; margin-right: 18px; margin-bottom: 9px; color: grey; font-size: 18px; cursor: pointer";
+	}
+
+}
