@@ -11,7 +11,7 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddTransient<DataService>();
 builder.Services.AddHttpClient();
 
-var connString = builder.Configuration["ConnectionStrings:DefaultConnection"];
+var connString = builder.Configuration.GetConnectionString("DefaultConnection");
 
 
 // Registrera Context-klassen för dependency injection
