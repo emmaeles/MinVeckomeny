@@ -11,8 +11,11 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddTransient<DataService>();
 builder.Services.AddHttpClient();
 
+var connString = builder.Configuration["ConnectionStrings:DefaultConnection"];
+
+
 // Registrera Context-klassen för dependency injection
-builder.Services.AddDbContext<ApplicationContext>(o => o.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<ApplicationContext>(o => o.UseSqlServer(connString));
 
 
 var app = builder.Build();

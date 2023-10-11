@@ -13,29 +13,25 @@
 						 ValueExpression="@(() => inputValue)"
 						 Value="@inputValue"
 						 ValueChanged="@((string value) => FilterSearchResult(value))">
-						 
+
 				<option value="">Sök på ingrediens</option>
 				@foreach (var item in allIngredients)
 				{
-					
 					<option value="@item">@item</option>
 				}
 			</InputSelect>
 		}
 		<div class="input-group-prepend">
 			<div class="dropdown">
-				<a @onclick=this.ToggleDropDown class="btn btn-secondary dropdown-toggle" role="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<a @onclick="() => ToggleDropDown(true)" class="btn btn-secondary dropdown-toggle" role="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 					@searchFilter
 				</a>
-				@if (state)
-				{
-					<div class="dropdown-menu show" aria-labelledby="dropdownMenuButton">
-						<a @onclick='() => searchFilter = "Receptnamn"' class="dropdown-item">Receptnamn</a>
-						<a @onclick='() => searchFilter = "Ingrediens"' class="dropdown-item">Ingrediens</a>
-						<a @onclick='() => searchFilter = "Hashtag"' class="dropdown-item">Hashtag</a>
-						<a class="dropdown-item">Visa endast veckans extrapriser</a>
-					</div>
-				}
+				<div @onpointerleave="() => ToggleDropDown(false)" class=@dropDownStyle aria-labelledby="dropdownMenuButton">
+					<a @onclick='() => searchFilter = "Receptnamn"' class="dropdown-item">Receptnamn</a>
+					<a @onclick='() => searchFilter = "Ingrediens"' class="dropdown-item">Ingrediens</a>
+					<a @onclick='() => searchFilter = "Hashtag"' class="dropdown-item">Hashtag</a>
+					<a class="dropdown-item">Visa endast veckans extrapriser</a>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -107,7 +103,7 @@
 	public EventCallback<int> OnAddToVeckomeny { get; set; }
 	private static bool alreadyInitialized;
 	private string inputValue = "";
-	private bool state = false;
+	private string dropDownStyle = "dropdown-menu";
 	private string searchFilter = "Receptnamn";
 	private static List<string> allIngredients;
 	private static List<string> chosenIngredients = new();
@@ -138,6 +134,7 @@
 		{
 			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
 			recipeList.Add(data.GetIndexModel(RecipeToAddId));
+			recipeListToDisplay.Add(data.GetIndexModel(RecipeToAddId));
 			oldRecipeToAddId = RecipeToAddId;
 			RecipeToAddId = 0;
 		}
@@ -146,8 +143,8 @@
 	private void AddToVeckomeny(int receptId)
 	{
 		OnAddToVeckomeny.InvokeAsync(receptId);
-		var recipeToRemove = recipeList.Where(o => o.Id == receptId).First();
-		recipeList.Remove(recipeToRemove);
+		recipeList = recipeList.Where(o => o.Id != receptId).ToList();
+		recipeListToDisplay = recipeListToDisplay.Where(o => o.Id != receptId).ToList();
 	}
 
 	private void ShowSearchResult(ChangeEventArgs changeEvent)
@@ -158,8 +155,17 @@
 
 	}
 
-	private void ToggleDropDown()
-		=> this.state = !this.state;
+	private void ToggleDropDown(bool show)
+	{
+		if (show)
+		{
+			dropDownStyle = "dropdown-menu show";
+		}
+		else
+		{
+			dropDownStyle = "dropdown-menu";
+		}
+	}
 
 
 	private void FilterSearchResult(string filter)
