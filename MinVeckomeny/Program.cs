@@ -8,7 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddServerSideBlazor();
-builder.Services.AddTransient<DataService>();
+builder.Services.AddScoped<DataService>();
 builder.Services.AddHttpClient();
 
 var connString = builder.Configuration.GetConnectionString("DefaultConnection");

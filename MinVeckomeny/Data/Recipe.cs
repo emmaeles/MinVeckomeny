@@ -21,8 +21,8 @@ namespace MinVeckomeny.Data
 		public string? Enhet { get; set; }
         public int Popularitet { get; set; }
         public bool HarHemma { get; set; }
-
-        public List<Ingredients2Recipes> RecipesWithThisIngredient { get; set; }
+		public bool Discounted { get; set; }
+		public List<Ingredients2Recipes> RecipesWithThisIngredient { get; set; }
 
 	}
 

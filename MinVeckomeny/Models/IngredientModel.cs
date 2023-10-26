@@ -8,6 +8,7 @@
 		public string? Enhet { get; set; }
 		public bool HarHemma { get; set; }
         public decimal Temp { get; set; }
+        public bool Discounted { get; set; }
 
     }
 }

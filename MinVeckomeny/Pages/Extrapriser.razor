@@ -16,15 +16,39 @@ else if (veckans is null)
 }
 else
 {
-	foreach (var item in veckans.results)
-	{
-		<p>
-			@(item.name != null ? item.name : null):
-			extrapris @(item.potentialPromotions[0].price.formattedValue != null ? item.potentialPromotions[0].price.formattedValue + " kr" : null),
-			ordinarie pris: @(item.price != null ? item.price + " kr" : null)
-			, kategori: @item.googleAnalyticsCategory
-		</p>
-	}
+
+	<table class="table table-striped">
+		<thead>
+			<tr>
+				<th style="font-weight: normal;">Vara</th>
+				<th style="font-weight: normal;">Extrapris</th>
+				<th style="font-weight: normal;">Ordinarie pris</th>
+				<th style="font-weight: normal;">Kategori</th>
+				<th style="font-weight: normal;">Kampanjtyp</th>
+			</tr>
+		</thead>
+		<tbody>
+			@foreach (var item in veckans.results)
+			{
+				<tr>
+					<td>
+						@(item.name != null ? item.name : null)
+					</td>
+					<td>@(item.potentialPromotions[0].price.formattedValue != null ? item.potentialPromotions[0].price.formattedValue + " kr" : null)</td>
+					<td>@(item.price != null ? item.price + " kr" : null)</td>
+					<td>@item.googleAnalyticsCategory</td>
+					<td>
+						@foreach (var thing in item.potentialPromotions)
+						{
+							<span>@thing.textLabelGenerated</span>
+						}
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+
+
 }
 
 

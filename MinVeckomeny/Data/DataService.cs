@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.IdentityModel.Tokens;
 using MinVeckomeny.Models;
+using System.Linq;
 using System.Reflection.Metadata.Ecma335;
 using static System.Net.WebRequestMethods;
 
@@ -18,6 +20,7 @@ namespace MinVeckomeny.Data
 			this.clientFactory = clientFactory;
 			this.context = context;
 		}
+
 
 		public List<IndexModel> GetAll()
 		{
@@ -132,7 +135,7 @@ namespace MinVeckomeny.Data
 					newHashtag = false;
 				}
 
-				 if (newHashtag)
+				if (newHashtag)
 				{
 					context.Hashtags2Recipes.Add(new Hashtags2Recipes
 					{
@@ -245,7 +248,7 @@ namespace MinVeckomeny.Data
 			ExtraPrisModel model = new ExtraPrisModel();
 
 			var client = clientFactory.CreateClient();
-			string baseAddress = "https://www.hemkop.se/search/campaigns/mix?q=4349&type=LOYALTY&size=30&onlineSize=0&offlineSize=0&avoid";
+			string baseAddress = "https://www.hemkop.se/search/campaigns/mix?q=4349&type=LOYALTY&size=70&onlineSize=0&offlineSize=0&avoid";
 			string cache = Random.Shared.Next().ToString();
 
 			try
@@ -257,6 +260,8 @@ namespace MinVeckomeny.Data
 			{
 				model.ErrorMessage = ex.Message;
 			}
+
+			model.results = model.results.Where(o => o.potentialPromotions[0].textLabelGenerated != "Alltid bra pris!").ToArray();
 
 			return model;
 		}
@@ -280,6 +285,11 @@ namespace MinVeckomeny.Data
 		public List<string> GetAllIngredientNames()
 		{
 			return context.Ingredients.Select(o => o.Name).ToList();
+		}
+
+		public List<string> GetAllHashtagNames()
+		{
+			return context.Hashtags.Select(o => o.Name).ToList();
 		}
 
 		public List<IngredientModel> GetIngredientModelsByRecipe(int id)
@@ -377,6 +387,33 @@ namespace MinVeckomeny.Data
 			return result;
 		}
 
+		public Dictionary<int, int> GetDiscountedIngredientsByRecipes()
+		{
+			Dictionary<int, int> result = new();
+
+			//var allRecipeIds = context.Recipes.Select(o => o.Id).ToList();
+
+			//foreach (var item in allRecipeIds)
+			//{
+			//	int discountedIngredients = 0;
+
+			//	if (!veckansExtrapriser.IsNullOrEmpty())
+			//	{
+			//		foreach (var ingredient in veckansExtrapriser)
+			//		{
+			//			int ingredientId = context.Ingredients.First(o => o.Name == ingredient).Id;
+			//			if (!context.Ingredients2Recipes.Where(o => o.IngredientId == ingredientId).Where(o => o.RecipeId == item).IsNullOrEmpty())
+			//			{
+			//				discountedIngredients++;
+			//			}
+			//		}
+			//	}
+
+			//	result.Add(item, discountedIngredients);
+			//}
+			return result;
+		}
+
 
 		public Dictionary<IndexModel, List<string>> GettAllIngredientsByRecipes()
 		{
@@ -399,6 +436,90 @@ namespace MinVeckomeny.Data
 
 			return result;
 		}
+
+		public async Task GetWeekIngrediets()
+		{
+			var ingredients = context.Ingredients.ToList();
+
+			foreach (var item in ingredients)
+			{
+				item.Discounted = false;
+			}
+			context.SaveChanges();
+
+			////var allIngredients = GetAllIngredientNames();
+			var veckansKatalog = await GetExtraPrices();
+
+			//////////TESTKATALOG////////////////
+			//var veckansKatalog = new ExtraPrisModel
+			//{ 
+			//	results = new Result[]
+			//	{
+			//		new Result
+			//		{
+			//			name = "Kokosmjölk",
+			//			googleAnalyticsCategory = "skafferi|asien|kokosmjolk"
+			//		},
+			//		new Result
+			//		{
+			//			name = "Fläsklägg",
+			//			googleAnalyticsCategory = "kott-och-fagel|kott|flaskkott"
+			//		},
+			//		new Result
+			//		{
+			//			name = "Smögåslimpa",
+			//			googleAnalyticsCategory = "brod-och-kakor|brod|matbrod"
+			//		}
+			//	}
+			//};
+
+			//var allIngredients = new List<string> { "Mjölk", "Ägg", "Smör"};
+			//////////TESTKATALOG////////////////
+
+			foreach (var ingredient in ingredients)
+			{
+				var splitIngredient = ingredient.Name.Split(' ');
+				var varuKategori = ingredient.Kategori.Split(".");
+
+				foreach (var item in veckansKatalog.results)
+				{
+					var googleCategory = item.googleAnalyticsCategory.Split("|");
+
+					if (item.name.ToLower().Contains(splitIngredient[0].ToLower())
+						&& googleCategory[0] == varuKategori[varuKategori.Count() - 1])
+					{
+						ingredient.Discounted = true;
+					}
+
+					var ingredientNameReplaced = ingredient.Name.Replace('ö', 'o');
+					ingredientNameReplaced = ingredientNameReplaced.Replace('å', 'a');
+					ingredientNameReplaced = ingredientNameReplaced.Replace('ä', 'a');
+					if (googleCategory[googleCategory.Length - 1].Contains(ingredientNameReplaced.ToLower()))
+					{
+						if (ingredientNameReplaced.ToLower() == "ris")
+						{
+							ingredient.Discounted = false;
+						}
+						else
+						{
+							ingredient.Discounted = true;
+							context.SaveChanges();
+						}
+					}
+				}
+			}
+
+			foreach (var item in ingredients)
+			{
+				context.Ingredients.Attach(item);
+				context.Entry(item).Property(x => x.Discounted).IsModified = true;
+			}
+
+			context.SaveChanges();
+		}
+
+
+
 	}
 
 }

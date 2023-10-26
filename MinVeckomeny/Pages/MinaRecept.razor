@@ -1,21 +1,36 @@
 ﻿@inject MinVeckomeny.Data.DataService data;
+
 <div>
 	<h1 class="h3">Mina recept </h1>
 
 	<div class="input-group mb-3">
 		@if (searchFilter == "Receptnamn")
 		{
-			<input type="text" @bind="inputValue" @oninput="ShowSearchResult" class="form-control" placeholder="sök...">
+			<input type="text" @bind="inputValue" @oninput="ShowSearchResult" class="form-control" placeholder="Sök...">
 		}
 		@if (searchFilter == "Ingrediens")
 		{
 			<InputSelect class="form-control ingredient-dropdown"
 						 ValueExpression="@(() => inputValue)"
 						 Value="@inputValue"
-						 ValueChanged="@((string value) => FilterSearchResult(value))">
+						 ValueChanged="@((string value) => FilterSearchResult(value, "ingredient", false))">
 
-				<option value="">Sök på ingrediens</option>
+				<option style="display: none" value="">Sök...</option>
+
 				@foreach (var item in allIngredients)
+				{
+					<option value="@item">@item</option>
+				}
+			</InputSelect>
+		}
+		@if (searchFilter == "Hashtag")
+		{
+			<InputSelect class="form-control ingredient-dropdown"
+						 ValueExpression="@(() => inputValue)"
+						 Value="@inputValue"
+						 ValueChanged="@((string value) => FilterSearchResult(value, "hashtag", false))">
+				<option style="display: none" value="">Sök...</option>
+				@foreach (var item in allHashtags)
 				{
 					<option value="@item">@item</option>
 				}
@@ -23,14 +38,21 @@
 		}
 		<div class="input-group-prepend">
 			<div class="dropdown">
-				<a @onclick="() => ToggleDropDown(true)" class="btn btn-secondary dropdown-toggle" role="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+				<a @onclick="() => ToggleDropDown(true)" class="btn btn-secondary dropdown-toggle" style="border-top-left-radius: 0px; border-bottom-left-radius: 0px" role="button" id="dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
 					@searchFilter
 				</a>
 				<div @onpointerleave="() => ToggleDropDown(false)" class=@dropDownStyle aria-labelledby="dropdownMenuButton">
 					<a @onclick='() => searchFilter = "Receptnamn"' class="dropdown-item">Receptnamn</a>
 					<a @onclick='() => searchFilter = "Ingrediens"' class="dropdown-item">Ingrediens</a>
 					<a @onclick='() => searchFilter = "Hashtag"' class="dropdown-item">Hashtag</a>
-					<a class="dropdown-item">Visa endast veckans extrapriser</a>
+					<a class="dropdown-item">
+						<div class="form-check">
+							<label class="form-check-label" for="flexCheckDefault">
+								Visa endast veckans extrapriser
+							</label>
+							<input class="form-check-input" type="checkbox" @onclick='() => FilterSearchResult("","", true)' id="flexCheckDefault">
+						</div>
+					</a>
 				</div>
 			</div>
 		</div>
@@ -41,10 +63,19 @@
 		foreach (var item in chosenIngredients)
 		{
 			<span id="@item" class="btn btn-light mx-1 my-1" style="background-color: #dce2c0"
-			@onclick="() => RemoveFromChosenFilters(item)">@item</span>
+			@onclick="@(() => RemoveFromChosenFilters(item, "ingredient"))">@item</span>
 		}
-
 	}
+
+	@if (chosenHashtags.Count > 0)
+	{
+		foreach (var item in chosenHashtags)
+		{
+			<span id="@item" class="btn btn-light mx-1 my-1" style="background-color: #9cbab3"
+			@onclick="@(() => RemoveFromChosenFilters(item, "hashtag"))">#@item</span>
+		}
+	}
+
 	<br />
 	<br />
 	<div>
@@ -67,10 +98,13 @@
 							<div>
 								@item.Description
 							</div>
+
 							@foreach (var hashtag in hashtagsByRecipes[item.Id])
 							{
 								<span style="margin-right: 18px; color: #87c85a; font-size: 18px">#@hashtag</span>
 							}
+
+
 						</div>
 					</div>
 					<div style="display: flex; flex-direction: row; align-items: center; margin-right: 1em">
@@ -99,6 +133,7 @@
 	static List<IndexModel> recipeListToDisplay;
 	static Dictionary<int, List<string>> hashtagsByRecipes;
 	static Dictionary<IndexModel, List<string>> ingredientsByRecipes;
+	static Dictionary<int, int> discountedIngredientsByRecipes;
 	[Parameter]
 	public EventCallback<int> OnAddToVeckomeny { get; set; }
 	private static bool alreadyInitialized;
@@ -106,18 +141,24 @@
 	private string dropDownStyle = "dropdown-menu";
 	private string searchFilter = "Receptnamn";
 	private static List<string> allIngredients;
+	private static List<string> allHashtags;
 	private static List<string> chosenIngredients = new();
-
+	private static List<string> chosenHashtags = new();
+	private IndexModel temp;
+	bool visaExtrapriser = false;
 
 	protected override async Task OnInitializedAsync()
 	{
 		if (!alreadyInitialized)
 		{
+			data.GetWeekIngrediets();
 			recipeList = data.GetAll();
 			recipeListToDisplay = new List<IndexModel>(recipeList);
 			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
 			ingredientsByRecipes = data.GettAllIngredientsByRecipes();
 			allIngredients = data.GetAllIngredientNames();
+			allHashtags = data.GetAllHashtagNames();
+			discountedIngredientsByRecipes = data.GetDiscountedIngredientsByRecipes();
 			alreadyInitialized = true;
 		}
 	}
@@ -127,7 +168,9 @@
 		if (NeedsUpdate == "true")
 		{
 			recipeList = data.GetAll();
+			recipeListToDisplay = new List<IndexModel>(recipeList);
 			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
+			ingredientsByRecipes = data.GettAllIngredientsByRecipes();
 			NeedsUpdate = "false";
 		}
 		if (RecipeToAddId != 0 && oldRecipeToAddId != RecipeToAddId)
@@ -151,8 +194,8 @@
 	{
 		inputValue = (string)changeEvent.Value;
 
-		recipeListToDisplay = recipeList.Where(o => o.Name.ToLower().Contains(inputValue.ToLower())).ToList();
-
+		// recipeListToDisplay = recipeList.Where(o => o.Name.ToLower().Contains(inputValue.ToLower())).ToList();
+		FilterSearchResult(inputValue, "fritext", false);
 	}
 
 	private void ToggleDropDown(bool show)
@@ -168,39 +211,112 @@
 	}
 
 
-	private void FilterSearchResult(string filter)
+	private void FilterSearchResult(string filter, string type, bool toggle)
 	{
-		chosenIngredients.Add(filter);
-		recipeListToDisplay.Clear();
-
-		foreach (var entry in ingredientsByRecipes)
+		if (toggle)
 		{
-			int counter = 0;
+			visaExtrapriser = !visaExtrapriser;
+		}
 
-			foreach (var chosen in chosenIngredients)
+		if (type == "ingredient")
+		{
+			chosenIngredients.Add(filter);
+			recipeListToDisplay = new List<IndexModel>(recipeList);
+		}
+		if (type == "hashtag")
+		{
+			chosenHashtags.Add(filter);
+			recipeListToDisplay = new List<IndexModel>(recipeList);
+		}
+
+		// if (visaExtrapriser)
+		// {
+		// 	var veckansIngredienser = data.VeckansExtrapriser;
+		// 	foreach (var item in ingredientsByRecipes)
+		// 	{
+		// 		bool remove = true;
+		// 		foreach (var ingredient in veckansIngredienser)
+		// 		{
+		// 			if (item.Value.Contains(ingredient))
+		// 			{
+		// 				remove = false;
+		// 			}
+		// 		}
+
+		// 		if (remove)
+		// 		{
+		// 			recipeListToDisplay = recipeList.Where(o => o.Id != item.Key.Id).ToList();
+		// 		}
+		// 	}
+		// }
+
+		if (type == "fritext")
+		{
+			recipeListToDisplay = recipeList.Where(o => o.Name.ToLower().Contains(inputValue.ToLower())).ToList();
+		}
+
+		if (chosenIngredients.Count > 0)
+		{
+			foreach (var entry in ingredientsByRecipes)
 			{
-				if (entry.Value.Contains(chosen))
+				int counter = 0;
+
+				foreach (var chosen in chosenIngredients)
 				{
-					counter++;
+					if (entry.Value.Contains(chosen))
+					{
+						counter++;
+					}
+				}
+
+				if (counter != chosenIngredients.Count)
+				{
+					recipeListToDisplay = recipeListToDisplay.Where(o => o.Id != entry.Key.Id).ToList();
 				}
 			}
+		}
 
-			if (counter == chosenIngredients.Count)
+		if (chosenHashtags.Count > 0)
+		{
+			foreach (var item in recipeListToDisplay)
 			{
-				recipeListToDisplay.Add(entry.Key);
+				int counter = 0;
+				foreach (var chosen in chosenHashtags)
+				{
+					if (hashtagsByRecipes[item.Id].Contains(chosen))
+					{
+						counter++;
+					}
+				}
+
+				if (counter != chosenHashtags.Count)
+				{
+					recipeListToDisplay = recipeListToDisplay.Where(o => o.Id != item.Id).ToList();
+				}
 			}
 		}
 	}
 
-	private void RemoveFromChosenFilters(string filter)
+
+	private void RemoveFromChosenFilters(string filter, string type)
 	{
-		chosenIngredients.Remove(filter);
+
+		if (type == "ingredient")
+		{
+			chosenIngredients.Remove(filter);
+		}
+		else
+		{
+			chosenHashtags.Remove(filter);
+		}
+
 
 		if (chosenIngredients.Count == 0)
 		{
 			recipeListToDisplay = new List<IndexModel>(recipeList);
 		}
-		else
+
+		if (chosenIngredients.Count > 0)
 		{
 			recipeListToDisplay.Clear();
 
@@ -223,5 +339,28 @@
 			}
 		}
 
+		if (chosenHashtags.Count > 0)
+		{
+			foreach (var item in recipeListToDisplay)
+			{
+				int counter = 0;
+				foreach (var chosen in chosenHashtags)
+				{
+					if (hashtagsByRecipes[item.Id].Contains(chosen))
+					{
+						counter++;
+					}
+				}
+
+				if (counter != chosenHashtags.Count)
+				{
+					IndexModel recipeToRemove = data.GetIndexModel(item.Id);
+					recipeListToDisplay = recipeListToDisplay.Where(o => o.Id != item.Id).ToList();
+				}
+			}
+		}
 	}
+
+
+
 }
