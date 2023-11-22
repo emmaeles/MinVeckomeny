@@ -467,6 +467,7 @@ namespace MinVeckomeny.Data
 						&& googleCategory[0] == varuKategori[varuKategori.Count() - 1])
 					{
 						ingredient.Discounted = true;
+						context.SaveChanges();
 					}
 
 					var ingredientNameReplaced = ingredient.Name.Replace('ö', 'o');
@@ -478,6 +479,7 @@ namespace MinVeckomeny.Data
 						if (ingredientNameReplaced.ToLower() == "ris")
 						{
 							ingredient.Discounted = false;
+							context.SaveChanges();
 						}
 						//Problem: kategorin för zuccini och aubergine heter "zuccini-och-aubergine", varför
 						//både zucchini och aubergine markeras som rabbatterade om en av dem är det
