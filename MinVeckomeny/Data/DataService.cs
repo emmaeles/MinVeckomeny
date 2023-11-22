@@ -311,8 +311,9 @@ namespace MinVeckomeny.Data
 						Kategori = o.Kategori,
 						Enhet = o.Enhet,
 						Temp = decimal.Parse(data[1]),
-						HarHemma = o.HarHemma
-					}).Single());
+						HarHemma = o.HarHemma,
+						Discounted = o.Discounted
+					}).Single());;
 			}
 
 			result = result.OrderBy(o => o.Kategori).ToList();
@@ -387,32 +388,6 @@ namespace MinVeckomeny.Data
 			return result;
 		}
 
-		public Dictionary<int, int> GetDiscountedIngredientsByRecipes()
-		{
-			Dictionary<int, int> result = new();
-
-			//var allRecipeIds = context.Recipes.Select(o => o.Id).ToList();
-
-			//foreach (var item in allRecipeIds)
-			//{
-			//	int discountedIngredients = 0;
-
-			//	if (!veckansExtrapriser.IsNullOrEmpty())
-			//	{
-			//		foreach (var ingredient in veckansExtrapriser)
-			//		{
-			//			int ingredientId = context.Ingredients.First(o => o.Name == ingredient).Id;
-			//			if (!context.Ingredients2Recipes.Where(o => o.IngredientId == ingredientId).Where(o => o.RecipeId == item).IsNullOrEmpty())
-			//			{
-			//				discountedIngredients++;
-			//			}
-			//		}
-			//	}
-
-			//	result.Add(item, discountedIngredients);
-			//}
-			return result;
-		}
 
 
 		public Dictionary<IndexModel, List<string>> GettAllIngredientsByRecipes()
@@ -450,7 +425,9 @@ namespace MinVeckomeny.Data
 			////var allIngredients = GetAllIngredientNames();
 			var veckansKatalog = await GetExtraPrices();
 
-			//////////TESTKATALOG////////////////
+
+			//TESTKATALOG//
+			#region
 			//var veckansKatalog = new ExtraPrisModel
 			//{ 
 			//	results = new Result[]
@@ -475,6 +452,7 @@ namespace MinVeckomeny.Data
 
 			//var allIngredients = new List<string> { "Mjölk", "Ägg", "Smör"};
 			//////////TESTKATALOG////////////////
+# endregion
 
 			foreach (var ingredient in ingredients)
 			{
@@ -496,9 +474,16 @@ namespace MinVeckomeny.Data
 					ingredientNameReplaced = ingredientNameReplaced.Replace('ä', 'a');
 					if (googleCategory[googleCategory.Length - 1].Contains(ingredientNameReplaced.ToLower()))
 					{
+						//Problem: många kategorier innehåller bokstavskombinationen "ris"
 						if (ingredientNameReplaced.ToLower() == "ris")
 						{
 							ingredient.Discounted = false;
+						}
+						//Problem: kategorin för zuccini och aubergine heter "zuccini-och-aubergine", varför
+						//både zucchini och aubergine markeras som rabbatterade om en av dem är det
+						else if (ingredientNameReplaced.ToLower() == "zucchini" || ingredientNameReplaced.ToLower() == "aubergine")
+						{
+
 						}
 						else
 						{
@@ -509,16 +494,35 @@ namespace MinVeckomeny.Data
 				}
 			}
 
-			foreach (var item in ingredients)
-			{
-				context.Ingredients.Attach(item);
-				context.Entry(item).Property(x => x.Discounted).IsModified = true;
-			}
 
-			context.SaveChanges();
+			var discounted = context.Ingredients.Where(o => o.Discounted == true).ToList();
 		}
 
 
+		public Dictionary<int, int> GetNoOfDiscountsAndRecipeId()
+		{
+			Dictionary<int, int> recipesAndNoOfDisc = new Dictionary<int, int>();
+
+			var discountedIngredientIds = context.Ingredients
+				.Where(o => o.Discounted == true).Select(o => o.Id).ToList();
+
+			var allRecipeIds = context.Recipes.Select(o => o.Id).ToList();
+
+			foreach (var recipeId in allRecipeIds)
+			{
+				int noOfDiscountedIngredients = 0;
+				
+				foreach (var ingredientId in discountedIngredientIds)
+				{
+					noOfDiscountedIngredients += context.Ingredients2Recipes.Where(o => o.RecipeId == recipeId)
+						.Where(o => o.IngredientId == ingredientId).Count();
+				}
+
+				recipesAndNoOfDisc.Add(recipeId, noOfDiscountedIngredients);
+			}
+
+			return recipesAndNoOfDisc;
+		}
 
 	}
 

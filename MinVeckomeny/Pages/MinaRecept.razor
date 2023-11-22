@@ -91,7 +91,8 @@
 								margin-right: 1em"></div>
 							}
 						</div>
-						<div>
+						<div style="display:flex; flex-direction: column; justify-content: space-between">
+							<div>
 							<a href="details/@item.Id" class="h4" style="text-decoration: none; color: black">
 								@item.Name
 							</a>
@@ -103,7 +104,18 @@
 							{
 								<span style="margin-right: 18px; color: #87c85a; font-size: 18px">#@hashtag</span>
 							}
-
+							</div>
+							
+							<div>
+							@if (discountedIngredientsByRecipes.Count != 0 && discountedIngredientsByRecipes[item.Id] != 0)
+							{
+									<div style="background-color: #e9af77; color:white; width: 90px; border-radius: 15px;
+									text-align:center; margin-bottom: 2px">
+									<span style="font-weight:bold; font-size: 18px; padding: 5px">
+										@discountedIngredientsByRecipes[item.Id] * rabatt</span>
+								</div>
+							}
+							</div>
 
 						</div>
 					</div>
@@ -133,7 +145,7 @@
 	static List<IndexModel> recipeListToDisplay;
 	static Dictionary<int, List<string>> hashtagsByRecipes;
 	static Dictionary<IndexModel, List<string>> ingredientsByRecipes;
-	static Dictionary<int, int> discountedIngredientsByRecipes;
+	static Dictionary<int, int> discountedIngredientsByRecipes = new();
 	[Parameter]
 	public EventCallback<int> OnAddToVeckomeny { get; set; }
 	private static bool alreadyInitialized;
@@ -151,14 +163,14 @@
 	{
 		if (!alreadyInitialized)
 		{
-			data.GetWeekIngrediets();
 			recipeList = data.GetAll();
 			recipeListToDisplay = new List<IndexModel>(recipeList);
 			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
 			ingredientsByRecipes = data.GettAllIngredientsByRecipes();
 			allIngredients = data.GetAllIngredientNames();
 			allHashtags = data.GetAllHashtagNames();
-			discountedIngredientsByRecipes = data.GetDiscountedIngredientsByRecipes();
+			await data.GetWeekIngrediets();
+			discountedIngredientsByRecipes = data.GetNoOfDiscountsAndRecipeId();
 			alreadyInitialized = true;
 		}
 	}
@@ -171,6 +183,7 @@
 			recipeListToDisplay = new List<IndexModel>(recipeList);
 			hashtagsByRecipes = data.GetAllHashTagsByRecipes();
 			ingredientsByRecipes = data.GettAllIngredientsByRecipes();
+			discountedIngredientsByRecipes = data.GetNoOfDiscountsAndRecipeId();
 			NeedsUpdate = "false";
 		}
 		if (RecipeToAddId != 0 && oldRecipeToAddId != RecipeToAddId)

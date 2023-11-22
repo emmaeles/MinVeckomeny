@@ -7,7 +7,7 @@
 		@foreach (var item in shoppingList)
 		{
 			<div @onclick="() => MoveToHaveAtHome(item)" style="display: flex; justify-content: space-between; cursor: pointer">
-				<span>@item.Name</span>
+				<div><span>@item.Name</span> @if (item.Discounted) {<span> ⭐</span>}</div>
 				<div>
 				<span>@(item.Enhet != null ? @item.Temp.ToString("0.#####") : "")</span>
 					@if (item.Enhet == "burk" && item.Temp > 1) { <span>&nbsp;burkar</Span> }

@@ -5,7 +5,7 @@
 	<div>
 		<div style="display: flex; justify-content: space-between; width: 30em">
 			<div>
-				<h1 style="width: 90%">@model.Name</h1>
+				<h1>@model.Name</h1>
 				<div style="font-size: 20px; font-style: italic">@model.Description</div>
 				@foreach (var item in model.Hashtags)
 				{
@@ -24,7 +24,7 @@
 					@foreach (var item in ingredientModels)
 					{
 						<tr>
-							<td>@item.Name</td>
+							<td>@item.Name @if (item.Discounted) { <span> ⭐</span>}</td>
 							<td>@(item.Enhet != null ? item.Temp.ToString("0.###") : "")</td>
 							@if (item.Enhet == "burk" && item.Temp > 1)
 							{
